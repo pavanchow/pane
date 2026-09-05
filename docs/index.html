@@ -2,11 +2,701 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>pane</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pane playground</title>
+<style>
+:root {
+  --bg: #f5f5f7;
+  --panel: #ffffff;
+  --fg: #1d1d1f;
+  --muted: #6e6e73;
+  --line: #d2d2d7;
+  --accent: #0071e3;
+  --accent-soft: #e8f1fd;
+  --screen-bg: #e9e9ec;
+  --win: #d6e6fb;
+  --win-border: #94bff2;
+  --win-focus: #0071e3;
+  --win-focus-bg: #cfe2fc;
+  --float: #ffe9c7;
+  --float-border: #e0a94e;
+  --ok: #1a7f37;
+  --bad: #c9372c;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.06);
+  --radius: 14px;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  padding: 0 20px 80px;
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The dark override MUST come after the base body rule above and must re-declare both
+   the variables and the body background, otherwise a dark browser paints dark text on a
+   white body. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --panel: #1c1c1e;
+    --fg: #f5f5f7;
+    --muted: #98989d;
+    --line: #38383a;
+    --accent: #0a84ff;
+    --accent-soft: #10263f;
+    --screen-bg: #2c2c2e;
+    --win: #163055;
+    --win-border: #2f5c99;
+    --win-focus: #0a84ff;
+    --win-focus-bg: #1d3f6e;
+    --float: #4a3a1a;
+    --float-border: #a9812f;
+    --ok: #30d158;
+    --bad: #ff453a;
+    --shadow: 0 1px 3px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.4);
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+  }
+}
+
+header {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 48px 0 8px;
+}
+
+h1 { font-size: 40px; letter-spacing: -0.02em; margin: 0 0 6px; }
+h2 { font-size: 24px; letter-spacing: -0.01em; margin: 40px 0 12px; }
+h3 { font-size: 17px; margin: 20px 0 8px; }
+.tagline { font-size: 20px; color: var(--muted); margin: 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.wrap { max-width: 1080px; margin: 0 auto; }
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow);
+  margin-top: 20px;
+}
+.group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding-right: 10px;
+  margin-right: 4px;
+  border-right: 1px solid var(--line);
+}
+.group:last-child { border-right: none; }
+.group .label { font-size: 12px; color: var(--muted); margin-right: 2px; }
+
+button {
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--fg);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.05s ease;
+}
+button:hover { border-color: var(--accent); background: var(--accent-soft); }
+button:active { transform: translateY(1px); }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button.primary:hover { filter: brightness(1.05); }
+button.ws { min-width: 38px; }
+button.ws.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.stage {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 20px;
+  margin-top: 20px;
+}
+@media (max-width: 860px) {
+  .stage { grid-template-columns: 1fr; }
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+.card h3 { margin-top: 0; }
+
+#screen {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  background: var(--screen-bg);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.window {
+  position: absolute;
+  border: 1.5px solid var(--win-border);
+  background: var(--win);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  font-size: 13px;
+  color: var(--fg);
+  overflow: hidden;
+  transition: left 0.16s ease, top 0.16s ease, width 0.16s ease, height 0.16s ease;
+}
+.window .num { font-size: 20px; font-weight: 600; }
+.window .dims { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.window.focus { border-color: var(--win-focus); border-width: 2.5px; background: var(--win-focus-bg); }
+.window.floating {
+  background: var(--float);
+  border-color: var(--float-border);
+  border-style: dashed;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+}
+
+.readout {
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  margin-top: 14px;
+}
+.readout.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+.readout.bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+
+#tree {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  white-space: pre;
+  overflow-x: auto;
+  margin: 0;
+  color: var(--fg);
+}
+.tree-focus { color: var(--accent); font-weight: 700; }
+.tree-float { color: var(--float-border); }
+
+.meta { font-size: 12px; color: var(--muted); margin-top: 8px; font-family: var(--mono); }
+
+.howto ol { padding-left: 22px; }
+.howto li { margin: 6px 0; }
+kbd {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+.tour {
+  counter-reset: step;
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.tour li {
+  counter-increment: step;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 14px 14px 46px;
+  position: relative;
+}
+.tour li::before {
+  content: counter(step);
+  position: absolute;
+  left: 12px; top: 14px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+}
+footer { max-width: 1080px; margin: 40px auto 0; color: var(--muted); font-size: 13px; }
+code.inline { font-family: var(--mono); background: var(--accent-soft); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
+</style>
 </head>
 <body>
-<h1>pane</h1>
-<p>Site coming soon.</p>
-<p><a href="https://github.com/pavanchow/pane">View repository</a></p>
+<header>
+  <h1>Pane</h1>
+  <p class="tagline">A dependency free tiling window manager engine, running live in your browser.</p>
+</header>
+
+<div class="wrap">
+  <div class="controls" id="controls">
+    <div class="group">
+      <span class="label">windows</span>
+      <button class="primary" data-op="open-v">Open (vertical)</button>
+      <button data-op="open-h">Open (horizontal)</button>
+      <button data-op="close">Close</button>
+    </div>
+    <div class="group">
+      <span class="label">focus</span>
+      <button data-op="focus-left">&#8592;</button>
+      <button data-op="focus-down">&#8595;</button>
+      <button data-op="focus-up">&#8593;</button>
+      <button data-op="focus-right">&#8594;</button>
+    </div>
+    <div class="group">
+      <span class="label">move</span>
+      <button data-op="move-left">&#8592;</button>
+      <button data-op="move-right">&#8594;</button>
+    </div>
+    <div class="group">
+      <span class="label">resize</span>
+      <button data-op="resize-left">Shrink</button>
+      <button data-op="resize-right">Grow</button>
+    </div>
+    <div class="group">
+      <button data-op="float">Toggle float</button>
+    </div>
+    <div class="group" id="ws-group">
+      <span class="label">workspace</span>
+    </div>
+    <div class="group">
+      <button data-op="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="card">
+      <h3>Simulated screen <span class="meta" id="screen-meta"></span></h3>
+      <div id="screen" aria-label="tiled windows"></div>
+      <div class="readout ok" id="readout">invariant HOLDS</div>
+    </div>
+    <div class="card">
+      <h3>Layout tree</h3>
+      <pre id="tree"></pre>
+      <div class="meta" id="focus-meta"></div>
+    </div>
+  </div>
+
+  <h2>How to use this playground</h2>
+  <div class="card howto">
+    <ol>
+      <li><b>Open a window.</b> Press <kbd>Open (vertical)</kbd>. The first window fills the whole screen. Each further open splits the <i>focused</i> window in two, side by side for vertical or stacked for horizontal.</li>
+      <li><b>See the focus.</b> The focused window has a bright blue border and is marked with <code class="inline">*</code> in the layout tree on the right.</li>
+      <li><b>Move focus.</b> The arrow buttons under <b>focus</b> move the highlight to the nearest window in that direction. Nothing else changes.</li>
+      <li><b>Move a window.</b> The <b>move</b> arrows swap the focused window with its neighbour, so you can rearrange the layout.</li>
+      <li><b>Resize.</b> <kbd>Grow</kbd> and <kbd>Shrink</kbd> change the split ratio of the focused window against its sibling.</li>
+      <li><b>Float.</b> <kbd>Toggle float</kbd> lifts the focused window out of the tiling as an overlay (shown dashed and amber). Floating windows are deliberately excluded from the partition, which the readout accounts for.</li>
+      <li><b>Workspaces.</b> The numbered buttons switch between independent layouts. Each workspace keeps its own tree and focus.</li>
+      <li><b>Watch the invariant.</b> The green readout below the screen recomputes after every action and confirms that the tiled windows plus the gaps exactly equal the screen area. If it ever turned red, the tiling would have a hole or an overlap.</li>
+    </ol>
+  </div>
+
+  <h2>A short guided tour</h2>
+  <ol class="tour">
+    <li>Press <b>Open (vertical)</b> three times. You now have three windows side by side, and the readout shows windows plus gaps equal the screen.</li>
+    <li>Press a <b>focus</b> arrow to select a different window, then <b>Open (horizontal)</b>. Only the focused window splits, into a top and bottom pair.</li>
+    <li>Press <b>Grow</b> a few times and watch the focused window take space from its sibling while the total stays exact.</li>
+    <li>Press <b>Toggle float</b>. The window lifts out as an overlay and the tiled windows reclaim its space. Toggle again to tile it back.</li>
+    <li>Switch to <b>workspace 2</b> and build a different layout. Switch back and your first layout is exactly as you left it.</li>
+  </ol>
+</div>
+
+<footer>
+  Pane is a from scratch engine with zero dependencies. This page reimplements the same
+  tiling algorithm in JavaScript for teaching. Source and the Rust engine are at
+  <a href="https://github.com/pavanchow/pane">https://github.com/pavanchow/pane</a>.
+</footer>
+
+<script>
+"use strict";
+
+// ---------------------------------------------------------------------------
+// Geometry. Integer rectangles and the exact split math, mirroring the Rust engine.
+// ---------------------------------------------------------------------------
+function rect(x, y, w, h) { return { x, y, w: Math.max(0, w), h: Math.max(0, h) }; }
+function area(r) { return r.w * r.h; }
+function centerX(r) { return r.x + Math.floor(r.w / 2); }
+function centerY(r) { return r.y + Math.floor(r.h / 2); }
+function within(inner, outer) {
+  return inner.x >= outer.x && inner.y >= outer.y &&
+         inner.x + inner.w <= outer.x + outer.w &&
+         inner.y + inner.h <= outer.y + outer.h;
+}
+function overlaps(a, b) {
+  const xo = a.x < b.x + b.w && b.x < a.x + a.w;
+  const yo = a.y < b.y + b.h && b.y < a.y + a.h;
+  return xo && yo && area(a) > 0 && area(b) > 0;
+}
+// Split offset clamped so both children keep positive size, and the two extents always
+// sum to len exactly.
+function splitPoint(len, ratio) {
+  if (len < 2) return Math.max(0, len);
+  const raw = Math.round(len * ratio);
+  return Math.min(Math.max(raw, 1), len - 1);
+}
+// dir: "V" places children left and right (splits width). "H" stacks them (splits height).
+function splitRect(r, dir, ratio) {
+  if (dir === "V") {
+    const lw = splitPoint(r.w, ratio);
+    return [rect(r.x, r.y, lw, r.h), rect(r.x + lw, r.y, r.w - lw, r.h)];
+  }
+  const th = splitPoint(r.h, ratio);
+  return [rect(r.x, r.y, r.w, th), rect(r.x, r.y + th, r.w, r.h - th)];
+}
+// A gap shrinks each cell inward, capped at half the extent so tiny cells collapse to a
+// zero size rectangle that still sits inside the cell.
+function inset(r, gap) {
+  if (gap <= 0) return r;
+  const gx = Math.min(gap, Math.floor(r.w / 2));
+  const gy = Math.min(gap, Math.floor(r.h / 2));
+  return rect(r.x + gx, r.y + gy, r.w - 2 * gx, r.h - 2 * gy);
+}
+
+// ---------------------------------------------------------------------------
+// Layout tree. Leaf = { id }. Split = { dir, ratio, a, b }.
+// ---------------------------------------------------------------------------
+function leaf(id) { return { id }; }
+function isLeaf(n) { return n && n.id !== undefined; }
+
+function contains(node, id) {
+  if (!node) return false;
+  if (isLeaf(node)) return node.id === id;
+  return contains(node.a, id) || contains(node.b, id);
+}
+function firstLeaf(node) { return isLeaf(node) ? node.id : firstLeaf(node.a); }
+function windowIds(node, out) {
+  if (!node) return;
+  if (isLeaf(node)) { out.push(node.id); return; }
+  windowIds(node.a, out); windowIds(node.b, out);
+}
+function collect(node, areaRect, gap, out) {
+  if (!node) return;
+  if (isLeaf(node)) {
+    out.push({ id: node.id, cell: areaRect, rect: inset(areaRect, gap) });
+    return;
+  }
+  const [ra, rb] = splitRect(areaRect, node.dir, node.ratio);
+  collect(node.a, ra, gap, out);
+  collect(node.b, rb, gap, out);
+}
+// Split the leaf holding target, adding newId as its sibling. Returns the new subtree.
+function insertAt(node, target, newId, dir) {
+  if (isLeaf(node)) {
+    if (node.id === target) {
+      return { dir, ratio: 0.5, a: leaf(node.id), b: leaf(newId) };
+    }
+    return node;
+  }
+  if (contains(node.a, target)) return { ...node, a: insertAt(node.a, target, newId, dir) };
+  if (contains(node.b, target)) return { ...node, b: insertAt(node.b, target, newId, dir) };
+  return node;
+}
+// Remove id, promoting its sibling. Returns the new tree (or null).
+function removeId(node, id) {
+  if (!node) return null;
+  if (isLeaf(node)) return node.id === id ? null : node;
+  if (contains(node.a, id)) {
+    const na = removeId(node.a, id);
+    return na ? { ...node, a: na } : node.b;
+  }
+  if (contains(node.b, id)) {
+    const nb = removeId(node.b, id);
+    return nb ? { ...node, b: nb } : node.a;
+  }
+  return node;
+}
+function swapIds(node, x, y) {
+  if (isLeaf(node)) {
+    if (node.id === x) return leaf(y);
+    if (node.id === y) return leaf(x);
+    return node;
+  }
+  return { ...node, a: swapIds(node.a, x, y), b: swapIds(node.b, x, y) };
+}
+// Adjust the nearest ancestor split of id whose orientation matches want.
+function resizeSplit(node, id, want, delta) {
+  if (isLeaf(node)) return { node, state: node.id === id ? "found" : "no" };
+  const ra = resizeSplit(node.a, id, want, delta);
+  if (ra.state === "applied") return { node: { ...node, a: ra.node }, state: "applied" };
+  if (ra.state === "found") {
+    if (node.dir === want) {
+      const ratio = clampRatio(node.ratio + delta);
+      return { node: { ...node, a: ra.node, ratio }, state: "applied" };
+    }
+    return { node: { ...node, a: ra.node }, state: "found" };
+  }
+  const rb = resizeSplit(node.b, id, want, delta);
+  if (rb.state === "applied") return { node: { ...node, b: rb.node }, state: "applied" };
+  if (rb.state === "found") {
+    if (node.dir === want) {
+      const ratio = clampRatio(node.ratio - delta);
+      return { node: { ...node, b: rb.node, ratio }, state: "applied" };
+    }
+    return { node: { ...node, b: rb.node }, state: "found" };
+  }
+  return { node, state: "no" };
+}
+function clampRatio(r) { return Math.min(0.95, Math.max(0.05, r)); }
+
+// ---------------------------------------------------------------------------
+// Workspace and manager.
+// ---------------------------------------------------------------------------
+const RESIZE_STEP = 0.05;
+function newWorkspace() { return { tree: null, floating: [], focus: null }; }
+
+const SIM = rect(0, 0, 960, 640);
+const GAP = 8;
+
+const state = {
+  workspaces: [newWorkspace(), newWorkspace(), newWorkspace(), newWorkspace()],
+  active: 0,
+  nextId: 1,
+};
+
+function ws() { return state.workspaces[state.active]; }
+function tiled() { const out = []; collect(ws().tree, SIM, GAP, out); return out; }
+function focusIsFloating() { return ws().floating.some(f => f.id === ws().focus); }
+
+function opOpen(dir) {
+  const w = ws();
+  const id = state.nextId++;
+  if (!w.tree) { w.tree = leaf(id); }
+  else {
+    const anchor = (w.focus !== null && contains(w.tree, w.focus)) ? w.focus : firstLeaf(w.tree);
+    w.tree = insertAt(w.tree, anchor, id, dir);
+  }
+  w.focus = id;
+}
+function opClose() {
+  const w = ws();
+  if (w.focus === null) return;
+  if (w.floating.some(f => f.id === w.focus)) {
+    w.floating = w.floating.filter(f => f.id !== w.focus);
+  } else {
+    w.tree = removeId(w.tree, w.focus);
+  }
+  w.focus = defaultFocus(w);
+}
+function defaultFocus(w) {
+  if (w.tree) return firstLeaf(w.tree);
+  if (w.floating.length) return w.floating[0].id;
+  return null;
+}
+function nearest(from, dir) {
+  const places = tiled();
+  const fx = centerX(from), fy = centerY(from);
+  let best = null;
+  for (const p of places) {
+    if (p.id === ws().focus) continue;
+    const cx = centerX(p.cell), cy = centerY(p.cell);
+    const ok = dir === "left" ? cx < fx : dir === "right" ? cx > fx : dir === "up" ? cy < fy : cy > fy;
+    if (!ok) continue;
+    const d = (cx - fx) ** 2 + (cy - fy) ** 2;
+    if (!best || d < best.d || (d === best.d && p.id < best.id)) best = { d, id: p.id };
+  }
+  return best ? best.id : null;
+}
+function opFocus(dir) {
+  const p = tiled().find(t => t.id === ws().focus);
+  if (!p) return;
+  const t = nearest(p.cell, dir);
+  if (t !== null) ws().focus = t;
+}
+function opMove(dir) {
+  const w = ws();
+  const p = tiled().find(t => t.id === w.focus);
+  if (!p) return;
+  const t = nearest(p.cell, dir);
+  if (t !== null && w.tree) w.tree = swapIds(w.tree, w.focus, t);
+}
+function opResize(dir) {
+  const w = ws();
+  if (w.focus === null || !w.tree) return;
+  const want = (dir === "left" || dir === "right") ? "V" : "H";
+  const delta = (dir === "right" || dir === "down") ? RESIZE_STEP : -RESIZE_STEP;
+  const res = resizeSplit(w.tree, w.focus, want, delta);
+  if (res.state === "applied") w.tree = res.node;
+}
+function opFloat() {
+  const w = ws();
+  if (w.focus === null) return;
+  if (w.floating.some(f => f.id === w.focus)) {
+    w.floating = w.floating.filter(f => f.id !== w.focus);
+    if (!w.tree) w.tree = leaf(w.focus);
+    else w.tree = insertAt(w.tree, firstLeaf(w.tree), w.focus, "V");
+  } else if (w.tree && contains(w.tree, w.focus)) {
+    const id = w.focus;
+    w.tree = removeId(w.tree, id);
+    w.floating.push({ id, rect: rect(SIM.x + SIM.w / 4, SIM.y + SIM.h / 4, SIM.w / 2, SIM.h / 2) });
+  }
+}
+function opWorkspace(n) { state.active = n; }
+function opReset() {
+  state.workspaces = [newWorkspace(), newWorkspace(), newWorkspace(), newWorkspace()];
+  state.active = 0;
+  state.nextId = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Partition invariant, mirroring src/invariant.rs.
+// ---------------------------------------------------------------------------
+function checkInvariant(places) {
+  const errors = [];
+  if (places.length === 0) {
+    return { ok: true, covered: 0, gap: area(SIM), errors };
+  }
+  let cellSum = 0, covered = 0, gapFromCells = 0;
+  for (const p of places) {
+    cellSum += area(p.cell);
+    covered += area(p.rect);
+    gapFromCells += area(p.cell) - area(p.rect);
+    if (!within(p.cell, SIM)) errors.push("cell " + p.id + " escapes screen");
+    if (!within(p.rect, p.cell)) errors.push("window " + p.id + " escapes its cell");
+  }
+  if (cellSum !== area(SIM)) errors.push("cells sum " + cellSum + " != screen " + area(SIM));
+  for (let i = 0; i < places.length; i++)
+    for (let j = i + 1; j < places.length; j++)
+      if (overlaps(places[i].cell, places[j].cell)) errors.push("cells " + places[i].id + "," + places[j].id + " overlap");
+  const gap = area(SIM) - covered;
+  if (gap !== gapFromCells) errors.push("gap accounting mismatch");
+  return { ok: errors.length === 0, covered, gap, errors };
+}
+
+// ---------------------------------------------------------------------------
+// Rendering.
+// ---------------------------------------------------------------------------
+const screenEl = document.getElementById("screen");
+const treeEl = document.getElementById("tree");
+const readoutEl = document.getElementById("readout");
+const screenMeta = document.getElementById("screen-meta");
+const focusMeta = document.getElementById("focus-meta");
+
+function render() {
+  const places = tiled();
+  const w = ws();
+  const rectW = screenEl.clientWidth || 600;
+  const scale = rectW / SIM.w;
+
+  screenEl.innerHTML = "";
+  for (const p of places) {
+    screenEl.appendChild(windowEl(p.id, p.rect, scale, w.focus === p.id, false));
+  }
+  for (const f of w.floating) {
+    screenEl.appendChild(windowEl(f.id, f.rect, scale, w.focus === f.id, true));
+  }
+
+  const report = checkInvariant(places);
+  readoutEl.className = "readout " + (report.ok ? "ok" : "bad");
+  readoutEl.textContent = "invariant " + (report.ok ? "HOLDS" : "VIOLATED") +
+    "  |  screen " + area(SIM) + " = windows " + report.covered + " + gaps " + report.gap;
+
+  screenMeta.textContent = SIM.w + "x" + SIM.h + " px, gap " + GAP;
+  treeEl.innerHTML = w.tree ? treeText(w.tree, "", w.focus) : "(empty)";
+  const floatNote = w.floating.length ? "  floating: " + w.floating.map(f => f.id).join(", ") : "";
+  focusMeta.textContent = "focus: " + (w.focus === null ? "none" : "window " + w.focus) + floatNote;
+}
+
+function windowEl(id, r, scale, focused, floating) {
+  const el = document.createElement("div");
+  el.className = "window" + (focused ? " focus" : "") + (floating ? " floating" : "");
+  el.style.left = (r.x * scale) + "px";
+  el.style.top = (r.y * scale) + "px";
+  el.style.width = (r.w * scale) + "px";
+  el.style.height = (r.h * scale) + "px";
+  const num = document.createElement("div");
+  num.className = "num";
+  num.textContent = id;
+  const dims = document.createElement("div");
+  dims.className = "dims";
+  dims.textContent = r.w + "x" + r.h + (floating ? " float" : "");
+  el.appendChild(num);
+  el.appendChild(dims);
+  el.title = (floating ? "floating window " : "window ") + id;
+  return el;
+}
+
+function treeText(node, prefix, focus) {
+  if (isLeaf(node)) {
+    const mark = node.id === focus ? "*" : "";
+    const cls = node.id === focus ? "tree-focus" : "";
+    return prefix + "<span class='" + cls + "'>window " + node.id + mark + "</span>\n";
+  }
+  const label = node.dir === "V" ? "split | left/right" : "split - top/bottom";
+  let s = prefix + label + " ratio " + node.ratio.toFixed(2) + "\n";
+  s += treeText(node.a, prefix + "   ", focus);
+  s += treeText(node.b, prefix + "   ", focus);
+  return s;
+}
+
+// ---------------------------------------------------------------------------
+// Wiring.
+// ---------------------------------------------------------------------------
+const OPS = {
+  "open-v": () => opOpen("V"),
+  "open-h": () => opOpen("H"),
+  "close": opClose,
+  "focus-left": () => opFocus("left"),
+  "focus-right": () => opFocus("right"),
+  "focus-up": () => opFocus("up"),
+  "focus-down": () => opFocus("down"),
+  "move-left": () => opMove("left"),
+  "move-right": () => opMove("right"),
+  "resize-left": () => opResize("left"),
+  "resize-right": () => opResize("right"),
+  "float": opFloat,
+  "reset": () => { opReset(); buildWorkspaceButtons(); },
+};
+
+document.getElementById("controls").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-op]");
+  if (!btn) return;
+  const fn = OPS[btn.dataset.op];
+  if (fn) { fn(); render(); }
+});
+
+const wsGroup = document.getElementById("ws-group");
+function buildWorkspaceButtons() {
+  wsGroup.querySelectorAll("button").forEach(b => b.remove());
+  for (let i = 0; i < state.workspaces.length; i++) {
+    const b = document.createElement("button");
+    b.className = "ws" + (i === state.active ? " active" : "");
+    b.textContent = String(i + 1);
+    b.addEventListener("click", () => {
+      opWorkspace(i);
+      wsGroup.querySelectorAll("button").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      render();
+    });
+    wsGroup.appendChild(b);
+  }
+}
+
+buildWorkspaceButtons();
+// Seed a small starting layout so the screen is not empty on first load.
+opOpen("V"); opOpen("V"); opOpen("H");
+render();
+window.addEventListener("resize", render);
+</script>
 </body>
 </html>
