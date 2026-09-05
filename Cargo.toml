@@ -1,0 +1,18 @@
+[package]
+name = "pane"
+version = "0.1.0"
+edition = "2021"
+description = "A dependency-free tiling window manager engine that provably partitions a screen"
+license = "MIT"
+repository = "https://github.com/pavanchow/pane"
+
+[lib]
+name = "pane"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pane"
+path = "src/bin/pane.rs"
+
+[profile.release]
+opt-level = 3
