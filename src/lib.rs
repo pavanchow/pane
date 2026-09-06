@@ -28,6 +28,10 @@
 //! assert_eq!(report.covered + report.gap_area, wm.screen().area());
 //! ```
 
+// The engine is a library of small pure accessors. `must_use_candidate` would fire on
+// nearly every one of them, which is noise rather than signal, so it is opted out here.
+#![allow(clippy::must_use_candidate)]
+
 pub mod geometry;
 pub mod invariant;
 pub mod manager;

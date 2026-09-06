@@ -23,6 +23,7 @@ pub enum SplitDir {
 
 impl SplitDir {
     /// The opposite orientation, used when alternating splits.
+    #[must_use]
     pub fn flip(self) -> SplitDir {
         match self {
             SplitDir::Vertical => SplitDir::Horizontal,
@@ -103,6 +104,7 @@ impl Rect {
     /// This is how a gap or border is applied to a tiled cell. The result always stays
     /// inside the original rectangle, so a set of non overlapping cells produces a set
     /// of non overlapping windows.
+    #[must_use]
     pub fn inset(self, gap: i64) -> Rect {
         if gap <= 0 {
             return self;
@@ -145,10 +147,14 @@ impl Rect {
 /// keep positive size. When `len` is smaller there is no way to give both children
 /// positive size, so the first child takes everything and the second takes zero. Either
 /// way the two extents sum to `len` exactly.
+#[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
 fn split_point(len: i64, ratio: f64) -> i64 {
     if len < 2 {
         return len.max(0);
     }
+    // `len` is a pixel extent that comfortably fits in an f64 mantissa, and the product is
+    // clamped to `[1, len - 1]` right after, so neither the widening nor the truncation can
+    // move the result outside the legal range.
     let raw = (len as f64 * ratio).round() as i64;
     raw.clamp(1, len - 1)
 }
