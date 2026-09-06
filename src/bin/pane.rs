@@ -4,6 +4,7 @@
 //! resulting tiling. This is a thin shell over the library so what you see on the
 //! command line is exactly what the tests exercise.
 
+use std::fmt::Write as _;
 use std::io::Read;
 use std::process::ExitCode;
 
@@ -35,6 +36,7 @@ OPERATIONS:
     move <dir>      swap the focused window with its neighbour
     resize <dir>    grow the focused window toward a direction
     float           toggle the focused window between tiled and floating
+    monocle         toggle fullscreen zoom of the focused window
     workspace <n>   switch to workspace n
 
 EXAMPLE:
@@ -59,7 +61,7 @@ fn run(args: &[String]) -> Result<String, String> {
     if args.iter().any(|a| a == "--help" || a == "-h") {
         return Ok(USAGE.to_string());
     }
-    if args.first().map(|s| s.as_str()) == Some("demo") {
+    if args.first().map(String::as_str) == Some("demo") {
         return Ok(demo());
     }
 
@@ -151,6 +153,9 @@ fn demo() -> String {
         ("open v", "split the top window"),
         ("resize right", "grow the focused window to the right"),
         ("float", "float the focused window over the tiling"),
+        ("focus down", "move focus back into the tiling"),
+        ("monocle", "zoom the focused window to fullscreen"),
+        ("monocle", "leave monocle, the tiling returns unchanged"),
     ];
 
     let mut wm = WindowManager::new(Rect::new(0, 0, 1200, 800), 8);
@@ -159,7 +164,7 @@ fn demo() -> String {
         for op in parse_script(script).expect("demo scripts are valid") {
             wm.apply(op);
         }
-        out.push_str(&format!("$ {script}    # {note}\n"));
+        let _ = writeln!(out, "$ {script}    # {note}");
         let mut r = TextRenderer::new();
         r.render(&wm.frame());
         out.push_str(&r.buffer);

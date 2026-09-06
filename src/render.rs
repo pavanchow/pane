@@ -16,6 +16,7 @@ pub struct Frame {
     pub workspace: usize,
     pub screen: Rect,
     pub gap: i64,
+    pub monocle: bool,
     pub tiled: Vec<Placement>,
     pub floating: Vec<Floating>,
     pub focus: Option<WindowId>,
@@ -45,8 +46,12 @@ impl Renderer for TextRenderer {
         let b = &mut self.buffer;
         let _ = writeln!(
             b,
-            "workspace {} screen {}x{} gap {}",
-            frame.workspace, frame.screen.w, frame.screen.h, frame.gap
+            "workspace {} screen {}x{} gap {}{}",
+            frame.workspace,
+            frame.screen.w,
+            frame.screen.h,
+            frame.gap,
+            if frame.monocle { " [monocle]" } else { "" }
         );
         for p in &frame.tiled {
             let focused = frame.focus == Some(p.id);
@@ -96,6 +101,7 @@ mod tests {
             workspace: 0,
             screen,
             gap: 0,
+            monocle: false,
             tiled,
             floating: vec![],
             focus: Some(1),

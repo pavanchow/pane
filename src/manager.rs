@@ -4,6 +4,7 @@
 use crate::geometry::{Dir, Rect, SplitDir, WindowId};
 use crate::invariant::{self, PartitionReport};
 use crate::render::Frame;
+use crate::tree::Node;
 use crate::workspace::Workspace;
 
 /// A single operation that can be applied to the manager.
@@ -24,6 +25,8 @@ pub enum Op {
     Resize(Dir),
     /// Toggle the focused window between tiled and floating.
     Float,
+    /// Toggle monocle (fullscreen zoom) mode for the active workspace.
+    Monocle,
     /// Switch to a workspace, creating it if needed.
     Workspace(usize),
 }
@@ -32,8 +35,12 @@ impl Op {
     /// Parse one whitespace separated command token group into an [`Op`].
     ///
     /// Grammar, one op per token group: `open [h|v]`, `close`, `focus <dir>`,
-    /// `move <dir>`, `resize <dir>`, `float`, `workspace <n>`. Directions are
-    /// `left|right|up|down`. Returns an error string naming the bad token.
+    /// `move <dir>`, `resize <dir>`, `float`, `monocle`, `workspace <n>`. Directions are
+    /// `left|right|up|down`.
+    ///
+    /// # Errors
+    /// Returns an error string naming the offending token when the command word is
+    /// unknown, a direction is missing or invalid, or a workspace number will not parse.
     pub fn parse(tokens: &[&str]) -> Result<Op, String> {
         let (head, rest) = tokens
             .split_first()
@@ -53,6 +60,7 @@ impl Op {
             "move" | "m" => Ok(Op::Move(parse_dir(rest.first())?)),
             "resize" | "r" => Ok(Op::Resize(parse_dir(rest.first())?)),
             "float" => Ok(Op::Float),
+            "monocle" | "mono" => Ok(Op::Monocle),
             "workspace" | "ws" => {
                 let n = rest
                     .first()
@@ -127,6 +135,19 @@ impl WindowManager {
         self.workspaces[self.active].focus
     }
 
+    /// True when the active workspace is in monocle mode.
+    pub fn monocle(&self) -> bool {
+        self.workspaces[self.active].monocle
+    }
+
+    /// The number of windows, tiled plus floating, in the active workspace. Useful for
+    /// bounding stress runs so the layout does not grow without limit.
+    pub fn active_window_count(&self) -> usize {
+        let ws = &self.workspaces[self.active];
+        let tiled = ws.tree.as_ref().map_or(0, Node::leaf_count);
+        tiled + ws.floating.len()
+    }
+
     fn ws(&mut self) -> &mut Workspace {
         &mut self.workspaces[self.active]
     }
@@ -155,6 +176,9 @@ impl WindowManager {
             }
             Op::Float => {
                 self.ws().toggle_float(screen);
+            }
+            Op::Monocle => {
+                self.ws().toggle_monocle();
             }
             Op::Workspace(n) => {
                 while self.workspaces.len() <= n {
@@ -228,6 +252,7 @@ impl WindowManager {
             workspace: self.active,
             screen: self.screen,
             gap: self.gap,
+            monocle: ws.monocle,
             tiled,
             floating: ws.floating.clone(),
             focus: ws.focus,
@@ -250,6 +275,8 @@ mod tests {
         assert_eq!(Op::parse(&["open", "h"]).unwrap(), Op::Open(SplitDir::Horizontal));
         assert_eq!(Op::parse(&["focus", "left"]).unwrap(), Op::Focus(Dir::Left));
         assert_eq!(Op::parse(&["ws", "2"]).unwrap(), Op::Workspace(2));
+        assert_eq!(Op::parse(&["monocle"]).unwrap(), Op::Monocle);
+        assert_eq!(Op::parse(&["mono"]).unwrap(), Op::Monocle);
         assert!(Op::parse(&["bogus"]).is_err());
         assert!(Op::parse(&["focus"]).is_err());
     }
@@ -275,6 +302,53 @@ mod tests {
         assert_eq!(wm.frame().tiled.len(), 2);
         wm.apply(Op::Workspace(0));
         assert_eq!(wm.frame().tiled.len(), 1);
+    }
+
+    #[test]
+    fn monocle_keeps_the_invariant() {
+        let mut wm = WindowManager::new(Rect::new(0, 0, 1200, 800), 8);
+        for _ in 0..6 {
+            wm.apply(Op::Open(SplitDir::Vertical));
+        }
+        wm.apply(Op::Monocle);
+        assert!(wm.monocle());
+        let frame = wm.frame();
+        assert_eq!(frame.tiled.len(), 1);
+        assert!(frame.report.ok);
+        assert_eq!(frame.report.covered + frame.report.gap_area, wm.screen().area());
+        wm.apply(Op::Monocle);
+        assert!(!wm.monocle());
+        assert_eq!(wm.frame().tiled.len(), 6);
+        assert!(wm.report().ok);
+    }
+
+    #[test]
+    fn deep_nesting_holds_the_invariant() {
+        let mut wm = WindowManager::new(Rect::new(0, 0, 4096, 4096), 3);
+        // Always split the focused window so the tree grows one level deeper each step,
+        // producing a long spine of nested splits rather than a balanced tree.
+        for i in 0..2000 {
+            let dir = if i % 2 == 0 {
+                SplitDir::Vertical
+            } else {
+                SplitDir::Horizontal
+            };
+            wm.apply(Op::Open(dir));
+            let report = wm.report();
+            assert!(report.ok, "deep nesting violated at step {i}: {}", report.errors.join("; "));
+        }
+        assert_eq!(wm.active_window_count(), 2000);
+    }
+
+    #[test]
+    fn tiny_screen_never_panics_or_violates() {
+        let mut wm = WindowManager::new(Rect::new(0, 0, 2, 2), 5);
+        for _ in 0..50 {
+            wm.apply(Op::Open(SplitDir::Vertical));
+            wm.apply(Op::Open(SplitDir::Horizontal));
+            assert!(wm.report().ok);
+            assert!(wm.consistency_errors().is_empty());
+        }
     }
 
     #[test]
