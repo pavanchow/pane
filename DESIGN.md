@@ -47,6 +47,10 @@ A gap or border is applied by shrinking each cell inward to produce the visible 
 
 Floating windows are deliberately excluded from the partition. A floating window is lifted out of the tree and given an explicit overlay rectangle. It does not consume tiled space and it is not part of the invariant, which is the documented and intended behavior. Toggling float moves a window between the tree and the floating list, and toggling twice returns it to the tiling.
 
+## Monocle mode
+
+Monocle is a fullscreen zoom of the active workspace. When it is on, the layout walk is bypassed and a single placement is produced whose cell is the whole tiling region, so the one visible window fills the screen. The window shown is the focused one when it is a tiled leaf, otherwise the first tiled leaf. The layout tree is not modified while monocle is on, which is why leaving monocle restores the exact previous tiling with no bookkeeping. The partition invariant still holds because a single cell equal to the screen is a trivial exact partition of it, and the fuzz asserts this after monocle toggles like any other operation. Because there is only one visible cell, directional focus and move fall back to cycling through the windows in tree order rather than choosing by geometry, so both verbs stay useful in monocle mode.
+
 ## Workspaces and focus
 
 A workspace is one independent layout tree plus its floating windows and its focused window id. The manager holds a list of workspaces and an active index and switches between them, creating a workspace on demand when a higher index is requested. Because each workspace owns its own tree, building a layout on one workspace and switching away leaves it untouched, and switching back restores it exactly.
@@ -55,7 +59,11 @@ Focus is a single window id per workspace and may point at a tiled window or a f
 
 ## Why each gate proves its claim
 
-The partition gate applies long random sequences of operations and asserts the invariant after every single operation, not only at the end, so the first operation that could produce a hole or an overlap is caught immediately. It runs both with and without gaps, and with no gap it additionally asserts that the gap area is zero whenever any window is tiled, which is the strongest possible form of full coverage. The sequences are bounded for continuous integration and can be scaled up through environment variables.
+The partition gate applies long random sequences of operations and asserts the invariant after every single operation, not only at the end, so the first operation that could produce a hole or an overlap is caught immediately. It runs both with and without gaps, and with no gap it additionally asserts that the gap area is zero whenever any window is tiled, which is the strongest possible form of full coverage. The random operation generator reaches every verb the engine exposes, including monocle toggles and workspace switches, so no operation escapes the gate. A separate case reruns the same fuzz on adversarial screens, a one pixel square, one dimensional strips, a tiny square smaller than the gap, and a large odd sized screen that never divides evenly, so degenerate cells and cells smaller than the gap are exercised rather than assumed safe.
+
+The partition check is quadratic in the window count, so an unbounded fuzz would spend nearly all its time re-checking enormous layouts and its memory would grow without limit. The generator therefore caps the live window count through `PANE_FUZZ_MAX_WINDOWS`, forcing a close once the cap is reached. This keeps every per operation check cheap and lets the same gate scale from a quick continuous integration run to a stress of ten million operations while still asserting the invariant after every one. The sequences are bounded for continuous integration and can be scaled up through environment variables.
+
+The invariant checker is itself a piece of code that could be wrong, so it is unit tested against layouts that are known to be bad, an overlap, an uncovered gap, a cell that reaches past the screen edge, a window that spills outside its own cell, and cells whose areas do not sum to the screen. Each must be rejected. This closes the loop where a weak checker could rubber stamp a broken layout.
 
 The consistency gate asserts after every operation that no ratio has drifted out of range, that no window id appears twice, and that focus points at a real window, which together mean the tree is well formed and has no dangling empty containers. It also builds an arbitrary layout, snapshots the tiling, opens then closes a window, and asserts the tiling is byte for byte the same, which proves the split and merge steps are true inverses.
 
