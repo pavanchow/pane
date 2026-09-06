@@ -6,7 +6,7 @@
 
 mod common;
 
-use common::{env_u64, env_usize, random_op, Rng};
+use common::{env_u64, env_usize, random_op, random_op_capped, Rng};
 use pane::manager::Op;
 use pane::{Rect, SplitDir, WindowManager};
 
@@ -14,15 +14,16 @@ use pane::{Rect, SplitDir, WindowManager};
 fn tree_stays_well_formed_under_fuzz() {
     let ops = env_usize("PANE_FUZZ_OPS", 400);
     let runs = env_usize("PANE_FUZZ_RUNS", 40);
-    let base = env_u64("PANE_FUZZ_SEED", 0xC0FFEE);
+    let cap = env_usize("PANE_FUZZ_MAX_WINDOWS", 256);
+    let base = env_u64("PANE_FUZZ_SEED", 0x00C0_FFEE);
     let screen = Rect::new(0, 0, 1200, 800);
 
     for r in 0..runs as u64 {
-        let seed = base.wrapping_add(r.wrapping_mul(0x9E3779B97F4A7C15));
+        let seed = base.wrapping_add(r.wrapping_mul(0x9E37_79B9_7F4A_7C15));
         let mut wm = WindowManager::new(screen, 6);
         let mut rng = Rng::new(seed);
         for step in 0..ops {
-            let op = random_op(&mut rng);
+            let op = random_op_capped(&mut rng, wm.active_window_count(), cap);
             wm.apply(op);
             let errors = wm.consistency_errors();
             assert!(
@@ -40,7 +41,7 @@ fn close_after_open_restores_layout() {
     // Build an arbitrary base layout, snapshot its tiling, open then close, compare.
     let base = env_u64("PANE_FUZZ_SEED", 0xD00D);
     for r in 0..20u64 {
-        let seed = base.wrapping_add(r.wrapping_mul(0x9E3779B97F4A7C15));
+        let seed = base.wrapping_add(r.wrapping_mul(0x9E37_79B9_7F4A_7C15));
         let mut wm = WindowManager::new(screen, 4);
         let mut rng = Rng::new(seed);
         for _ in 0..30 {

@@ -41,20 +41,38 @@ fn random_dir(rng: &mut Rng) -> Dir {
 }
 
 /// Produce one random operation. Open is weighted more heavily than close so trees grow
-/// and the invariant is exercised on non trivial layouts.
+/// and the invariant is exercised on non trivial layouts. Every verb the engine exposes
+/// is reachable, including monocle toggles and workspace switches, so the fuzz covers the
+/// whole operation surface.
 pub fn random_op(rng: &mut Rng) -> Op {
-    match rng.below(10) {
-        0..=3 => Op::Open(if rng.below(2) == 0 {
+    match rng.below(16) {
+        0..=4 => Op::Open(if rng.below(2) == 0 {
             SplitDir::Vertical
         } else {
             SplitDir::Horizontal
         }),
-        4 => Op::Close,
-        5 | 6 => Op::Focus(random_dir(rng)),
-        7 => Op::Move(random_dir(rng)),
-        8 => Op::Resize(random_dir(rng)),
-        _ => Op::Float,
+        5 | 6 => Op::Close,
+        7..=9 => Op::Focus(random_dir(rng)),
+        10 => Op::Move(random_dir(rng)),
+        11 => Op::Resize(random_dir(rng)),
+        12 => Op::Float,
+        13 => Op::Monocle,
+        _ => Op::Workspace(usize::try_from(rng.below(3)).unwrap_or(0)),
     }
+}
+
+/// Produce one random operation, forcing a close whenever the active workspace already
+/// holds `cap` or more windows.
+///
+/// The partition check is quadratic in the window count, so an unbounded fuzz would spend
+/// almost all its time re-checking huge layouts. Capping the live window count keeps every
+/// per operation check cheap, which is what lets the stress reach hundreds of thousands of
+/// operations while still asserting the invariant after every single one.
+pub fn random_op_capped(rng: &mut Rng, live: usize, cap: usize) -> Op {
+    if live >= cap {
+        return Op::Close;
+    }
+    random_op(rng)
 }
 
 /// Read a positive integer environment variable, falling back to `default`.

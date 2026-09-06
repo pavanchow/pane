@@ -6,16 +6,17 @@
 
 mod common;
 
-use common::{env_u64, env_usize, random_op, Rng};
+use common::{env_u64, env_usize, random_op_capped, Rng};
 use pane::render::{Renderer, TextRenderer};
 use pane::{Rect, WindowManager};
 
 fn render_run(seed: u64, ops: usize) -> String {
+    let cap = env_usize("PANE_FUZZ_MAX_WINDOWS", 256);
     let mut wm = WindowManager::new(Rect::new(0, 0, 1200, 800), 8);
     let mut rng = Rng::new(seed);
     let mut renderer = TextRenderer::new();
     for _ in 0..ops {
-        wm.apply(random_op(&mut rng));
+        wm.apply(random_op_capped(&mut rng, wm.active_window_count(), cap));
         renderer.render(&wm.frame());
     }
     renderer.buffer

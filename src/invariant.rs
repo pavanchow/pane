@@ -106,8 +106,7 @@ pub fn check(screen: Rect, placements: &[Placement]) -> PartitionReport {
     let gap_area = screen.area() - covered;
     if gap_area != gap_from_cells {
         errors.push(format!(
-            "gap accounting disagrees: screen minus windows is {} but cell minus window sum is {}",
-            gap_area, gap_from_cells
+            "gap accounting disagrees: screen minus windows is {gap_area} but cell minus window sum is {gap_from_cells}"
         ));
     }
     if covered + gap_area != screen.area() {
@@ -186,5 +185,95 @@ mod tests {
             rect: Rect::new(0, 0, 50, 100),
         }];
         assert!(!check(screen, &placements).ok);
+    }
+
+    #[test]
+    fn cell_escaping_the_screen_is_caught() {
+        let screen = Rect::new(0, 0, 100, 100);
+        // A single cell that reaches past the right edge. Its area happens to equal the
+        // screen area, so only the containment check can catch it.
+        let placements = vec![Placement {
+            id: 1,
+            cell: Rect::new(10, 0, 100, 100),
+            rect: Rect::new(10, 0, 100, 100),
+        }];
+        let report = check(screen, &placements);
+        assert!(!report.ok);
+        assert!(report.errors.iter().any(|e| e.contains("escapes the screen")));
+    }
+
+    #[test]
+    fn window_escaping_its_cell_is_caught() {
+        let screen = Rect::new(0, 0, 100, 100);
+        let placements = vec![
+            Placement {
+                id: 1,
+                cell: Rect::new(0, 0, 50, 100),
+                // The visible rect spills outside the cell it was assigned.
+                rect: Rect::new(0, 0, 60, 100),
+            },
+            Placement {
+                id: 2,
+                cell: Rect::new(50, 0, 50, 100),
+                rect: Rect::new(50, 0, 50, 100),
+            },
+        ];
+        let report = check(screen, &placements);
+        assert!(!report.ok);
+        assert!(report.errors.iter().any(|e| e.contains("escapes its cell")));
+    }
+
+    #[test]
+    fn overshooting_cell_area_is_caught() {
+        let screen = Rect::new(0, 0, 100, 100);
+        // Cells cover more than the screen: the area sum exceeds the screen area.
+        let placements = vec![
+            Placement {
+                id: 1,
+                cell: Rect::new(0, 0, 60, 100),
+                rect: Rect::new(0, 0, 60, 100),
+            },
+            Placement {
+                id: 2,
+                cell: Rect::new(40, 0, 60, 100),
+                rect: Rect::new(40, 0, 60, 100),
+            },
+        ];
+        let report = check(screen, &placements);
+        assert!(!report.ok);
+        // Both the area mismatch and the overlap should be reported.
+        assert!(report.errors.iter().any(|e| e.contains("cell areas sum")));
+        assert!(report.errors.iter().any(|e| e.contains("overlap")));
+    }
+
+    #[test]
+    fn single_pixel_screen_holds() {
+        let screen = Rect::new(0, 0, 1, 1);
+        let placements = vec![Placement {
+            id: 1,
+            cell: screen,
+            rect: screen,
+        }];
+        assert!(check(screen, &placements).ok);
+    }
+
+    #[test]
+    fn zero_area_slivers_are_accepted() {
+        // A degenerate split can leave a zero width cell. It contributes no area and
+        // cannot overlap anything, so the partition still holds exactly.
+        let screen = Rect::new(0, 0, 10, 10);
+        let placements = vec![
+            Placement {
+                id: 1,
+                cell: Rect::new(0, 0, 10, 10),
+                rect: Rect::new(0, 0, 10, 10),
+            },
+            Placement {
+                id: 2,
+                cell: Rect::new(10, 0, 0, 10),
+                rect: Rect::new(10, 0, 0, 10),
+            },
+        ];
+        assert!(check(screen, &placements).ok);
     }
 }
