@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Pane logo">
+  <!-- screen frame -->
+  <rect x="12" y="16" width="104" height="96" rx="12" fill="#1e293b" stroke="#475569" stroke-width="4"/>
+  <!-- master tile (focused) -->
+  <rect x="22" y="26" width="50" height="76" rx="6" fill="#3b82f6"/>
+  <!-- stacked tiles -->
+  <rect x="80" y="26" width="26" height="35" rx="6" fill="#38bdf8"/>
+  <rect x="80" y="67" width="26" height="35" rx="6" fill="#22d3ee"/>
+</svg>

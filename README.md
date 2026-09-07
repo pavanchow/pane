@@ -1,3 +1,5 @@
+<img src="docs/logo.svg" alt="Pane logo" width="96">
+
 # Pane
 
 A dependency free tiling window manager engine in pure Rust. Zero external crates, edition 2021.
