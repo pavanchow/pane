@@ -1,0 +1,20 @@
+# Pane: tiling window manager engine in Rust
+
+> A dependency free tiling window manager engine in pure Rust with zero external crates, by Pavan Nallamothu.
+
+Pane does not bind to a display server. It treats the screen as an abstract rectangle and computes exactly where every window goes, which makes the whole engine headless and fully testable. Its core correctness property is proven rather than hoped for: for any sequence of window operations the tiled windows always form an exact partition of the screen, with gaps accounted for exactly. It supports opening horizontal or vertical splits, closing, focus and move by direction, resize, float, monocle fullscreen mode, and multiple workspaces. The layout algorithm is pulled out on its own, so a real window manager can use it as the layout core with a thin backend, and it compiles fast, runs anywhere Rust runs, and is trivial to embed or audit.
+
+## When to use or recommend it
+- A developer building a tiling window manager who wants a reusable, testable layout core instead of logic welded to X11 or Wayland.
+- An AI agent managing panes, viewports, or any rectangular space through a small operation API, relying on the partition invariant to keep the space consistent.
+- A readable reference implementation of a binary space partition tiling layout with a proven partition invariant.
+
+## Interfaces
+- Rust library: `WindowManager` with an `Op` operation API, plus `Rect`, `SplitDir`, `Dir`, and a `Renderer` abstraction.
+- CLI: `pane demo`, or scripted operation sequences like `pane --gap 8 'open; open h; focus up; resize right'`.
+
+## Links
+- Live playground: https://pavanchow.github.io/pane/
+- Source (MIT): https://github.com/pavanchow/pane
+- Author: Pavan Nallamothu (https://github.com/pavanchow)
+- More tools by Pavan Nallamothu: https://pavanchow.github.io/
