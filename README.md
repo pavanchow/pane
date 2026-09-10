@@ -6,6 +6,8 @@ Pane is a dependency free tiling window manager engine in pure Rust, with zero e
 
 **[Live demo](https://pavanchow.github.io/pane/)** · MIT licensed · pure Rust
 
+Built from scratch by [Pavan Nallamothu](https://pavanchow.github.io/) ([LinkedIn](https://www.linkedin.com/in/pavanchow/), [GitHub](https://github.com/pavanchow)).
+
 ## The gap it fills
 
 Most tiling window managers weld their layout logic to X11, Wayland, or a specific OS. The interesting part, the algorithm that decides how windows share the screen, is buried under platform glue and cannot be reused or tested in isolation.
